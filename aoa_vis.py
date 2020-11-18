@@ -1,54 +1,107 @@
-import sys
 import math
+import tkinter as tk
 
-import pygame
-
-# paste your own angles here
-angles = [10, 12, 11, 235, 246, 245]
-
-# styles
-class Colour:
-    BLACK = (0, 0, 0)
-    WHITE = (255, 255, 255)
-    GREEN = (0, 255, 0)
-    RED = (255, 0, 0)
+import numpy as np
+from sklearn.cluster import DBSCAN
 
 
-class Style:
-    BACKGROUND = Colour.BLACK
-    CENTRE_POINT = Colour.WHITE
-    OUTER_CIRCLE = Colour.WHITE
-    LINE = Colour.GREEN
+class Application(tk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.master = master
+        self.pack()
+
+        self.angles = tk.StringVar(value="90, 91, 140, 94")
+        self.eps = tk.IntVar(value=3)
+        self.min_samples = tk.IntVar(value=2)
+
+        self.angle_ids = []
+
+        self.create_widgets()
+        self.update_canvas()
+
+    def create_widgets(self):
+        self.canvas = tk.Canvas(self.master, width=400, height=400)
+        self.canvas.pack()
+
+        # centre point
+        self.canvas.create_oval(196, 196, 204, 204, fill="#fff")
+        # outer circle
+        self.canvas.create_oval(8, 8, 392, 392, outline="#fff")
+
+        self.angles_entry = tk.Entry(self.master, textvariable=self.angles)
+        self.angles_entry.pack()
+
+        self.eps_entry = tk.Entry(self.master, textvariable=self.eps)
+        self.eps_entry.pack()
+
+        self.min_samples_entry = tk.Entry(self.master, textvariable=self.min_samples)
+        self.min_samples_entry.pack()
+
+        self.render_button = tk.Button(
+            self.master, text="Render", command=self.update_canvas
+        )
+        self.render_button.pack()
+
+    def update_canvas(self):
+        for angle_id in self.angle_ids:
+            self.canvas.delete(angle_id)
+
+        self.angle_ids = []
+
+        angles = np.array([])
+
+        if self.angles.get():
+            angles = np.array(list(map(float, self.angles.get().split(", "))))
+
+        self.draw_angles(angles)
+        self.draw_clusters(angles)
+
+    def draw_angles(self, angles, colour="green"):
+        centre = (200, 200)
+        r = 196
+
+        for angle in angles:
+            x = centre[0] + r * math.sin(math.radians(angle))
+            y = centre[1] + r * math.cos(math.radians(angle))
+
+            angle_id = self.canvas.create_line(
+                centre[0], centre[1], x, 400 - y, fill=colour
+            )
+
+            self.angle_ids.append(angle_id)
+
+    def draw_clusters(self, angles):
+        if not angles.size:
+            return
+
+        clustering = DBSCAN(eps=self.eps.get(), min_samples=self.min_samples.get()).fit(
+            angles.reshape(-1, 1)
+        )
+
+        labels = clustering.labels_
+        unique_labels = set(labels)
+        core_sample_mask = np.zeros_like(labels, dtype=bool)
+        core_sample_mask[clustering.core_sample_indices_] = True
+
+        print(labels)
+        print(unique_labels)
+
+        cluster_angles = []
+
+        for l in unique_labels:
+            # don't show noise
+            if l == -1:
+                continue
+
+            cluster_member_mask = labels == l
+
+            cluster = angles[core_sample_mask & cluster_member_mask]
+            cluster_angles.append(np.average(cluster))
+
+        self.draw_angles(cluster_angles, colour="blue")
 
 
-pygame.init()
-
-size = width, height = 400, 400
-screen = pygame.display.set_mode(size)
-
-clock = pygame.time.Clock()
-
-while True:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            sys.exit()
-
-    screen.fill(Style.BACKGROUND)
-
-    centre = [width / 2, height / 2]
-    r = width / 2 - 20
-    # draw angles of arrival
-    for angle in angles:
-        x = centre[0] + (r - 1) * math.sin(math.radians(angle))
-        y = centre[1] + (r - 1) * math.cos(math.radians(angle))
-        pygame.draw.line(screen, Style.LINE, centre, [x, height - y], 1)
-
-    # draw centre point
-    pygame.draw.circle(screen, Style.CENTRE_POINT, centre, 5, 0)
-
-    # draw outer circle
-    pygame.draw.circle(screen, Style.OUTER_CIRCLE, centre, r, 1)
-
-    pygame.display.flip()
-
-    clock.tick(60)
+root = tk.Tk()
+app = Application(master=root)
+app.mainloop()
