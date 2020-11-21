@@ -1,4 +1,15 @@
-1. `./setup.sh`
-2. `./run.sh`
-3. Edit aoa_vis.py angles variable to display different angles
-4. Enjoy :)
+# aoa-vis
+
+Angle of arrival + DBSCAN visualisation application.
+
+![Demo of application](./demo.gif)
+
+# Installing
+
+We recommend using [pipx](https://pipxproject.github.io/pipx/) to install the application.
+
+`pipx install aoa-vis`
+
+# Running
+
+Open a terminal and run `aoa-vis`.
